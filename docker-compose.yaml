@@ -1,0 +1,75 @@
+version: "3"
+
+services:
+  postgrest:
+    container_name: postgREST
+    image: snowclone/postg-rest:1.0.1
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    env_file: .env
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/ready || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+  admin:
+    container_name: db-admin
+    image: snowclone/admin:2.0.1
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./admin:/admin
+  schema-server:
+    image: snowclone/schema-server:2.0.2
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "5175:5175"
+    env_file: .env
+    volumes:
+      - ./schema-server:/schema-server
+  eventserver:
+    image: snowclone/eventserver:3.0.2
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      - ./eventserver:/eventserver
+  db:
+    container_name: postgres
+    image: snowclone/postgres:3.0.5
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    env_file: .env
+    volumes:
+      - db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  swagger-ui:
+    container_name: swagger-ui
+    image: swaggerapi/swagger-ui
+    ports:
+      - "8081:8080"
+    env_file: .env
+    volumes:
+      - ./swagger:/api
+    restart: unless-stopped
+volumes:
+  db:
+    driver: local
